@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>食堂菜品检测与识别系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍽️ 食堂菜品检测与识别系统</h1>
+            <p class="subtitle">基于深度学习的智能菜品识别</p>
+        </header>
+
+        <div class="main-content">
+            <div class="upload-section">
+                <h2>上传图片</h2>
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="fileInput" accept="image/*" multiple>
+                    <div class="upload-placeholder">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p>点击或拖拽图片到此处上传</p>
+                        <p class="hint">支持 JPG, PNG, BMP 格式</p>
+                    </div>
+                </div>
+                <button id="predictBtn" class="btn btn-primary" disabled>开始识别</button>
+            </div>
+
+            <div class="results-section" id="resultsSection" style="display: none;">
+                <h2>识别结果</h2>
+                <div class="result-image-container">
+                    <img id="resultImage" src="" alt="识别结果">
+                </div>
+                <div class="detections-list" id="detectionsList"></div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h3>支持的菜品类别</h3>
+            <div class="classes-grid">
+                {% for dish in dish_classes %}
+                <span class="dish-tag">{{ dish }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const predictBtn = document.getElementById('predictBtn');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultImage = document.getElementById('resultImage');
+        const detectionsList = document.getElementById('detectionsList');
+
+        let selectedFiles = [];
+
+        // 文件选择处理
+        fileInput.addEventListener('change', (e) => {
+            selectedFiles = Array.from(e.target.files);
+            updateUploadArea();
+            predictBtn.disabled = selectedFiles.length === 0;
+        });
+
+        // 点击上传区域
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 拖拽上传
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            selectedFiles = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            const dt = new DataTransfer();
+            selectedFiles.forEach(file => dt.items.add(file));
+            fileInput.files = dt.files;
+            updateUploadArea();
+            predictBtn.disabled = selectedFiles.length === 0;
+        });
+
+        function updateUploadArea() {
+            if (selectedFiles.length > 0) {
+                uploadArea.innerHTML = `
+                    <div class="selected-files">
+                        <p>已选择 ${selectedFiles.length} 个文件</p>
+                        <ul>
+                            ${selectedFiles.map(f => `<li>${f.name}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+
+        // 预测按钮
+        predictBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return;
+
+            predictBtn.disabled = true;
+            predictBtn.textContent = '识别中...';
+
+            const formData = new FormData();
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+
+            try {
+                const response = await fetch('/predict_batch', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.results.length > 0) {
+                    const firstResult = data.results[0];
+                    if (firstResult.result_image) {
+                        resultImage.src = firstResult.result_image;
+                    }
+                    displayDetections(firstResult.detections);
+                    resultsSection.style.display = 'block';
+                } else {
+                    alert('识别失败，请重试');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('发生错误: ' + error.message);
+            } finally {
+                predictBtn.disabled = false;
+                predictBtn.textContent = '开始识别';
+            }
+        });
+
+        function displayDetections(detections) {
+            if (detections.length === 0) {
+                detectionsList.innerHTML = '<p class="no-detections">未检测到菜品</p>';
+                return;
+            }
+
+            detectionsList.innerHTML = `
+                <h3>检测到 ${detections.length} 个菜品</h3>
+                <div class="detections-grid">
+                    ${detections.map(det => `
+                        <div class="detection-card">
+                            <div class="detection-header">
+                                <span class="dish-name">${det.class_name}</span>
+                                <span class="confidence">置信度: ${(det.confidence * 100).toFixed(1)}%</span>
+                            </div>
+                            <div class="detection-info">
+                                <p>位置: [${det.bbox.map(x => x.toFixed(0)).join(', ')}]</p>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
+

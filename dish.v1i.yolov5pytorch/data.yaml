@@ -1,0 +1,10 @@
+names:
+- chapati
+- momos
+- momos-samosa-chapati
+- samosa
+nc: 4
+path: D:\深度学习1\dish.v1i.yolov5pytorch
+test: test/images
+train: train/images
+val: valid/images

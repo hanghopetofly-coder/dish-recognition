@@ -1,0 +1,60 @@
+# 食堂菜品检测与识别系统配置文件
+
+# 数据配置
+data:
+  data_dir: "./dish.v1i.yolov5pytorch"
+  train_dir: "./dish.v1i.yolov5pytorch/train"
+  val_dir: "./dish.v1i.yolov5pytorch/valid"  # 注意：验证集目录名为valid
+  test_dir: "./dish.v1i.yolov5pytorch/test"
+  image_size: [640, 640]  # YOLO标准尺寸
+  batch_size: 16
+  num_workers: 4
+  # 菜品类别列表（来自Roboflow数据集）
+  dish_classes:
+    - "chapati"
+    - "momos"
+    - "momos-samosa-chapati"
+    - "samosa"
+
+# 检测模型配置（YOLO）
+detection:
+  model_type: "yolov8n"  # yolov8n, yolov8s, yolov8m, yolov8l, yolov8x
+  num_classes: 4  # 更新为实际类别数
+  pretrained: true
+  save_path: "./models/detection_model.pt"
+  confidence_threshold: 0.5
+  iou_threshold: 0.45
+
+# 分类模型配置（可选，用于精细识别）
+classification:
+  model_type: "resnet50"
+  num_classes: 4  # 更新为实际类别数
+  pretrained: true
+  save_path: "./models/classification_model.pth"
+
+# 训练配置
+training:
+  epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.0005
+  momentum: 0.937
+  scheduler_type: "cosine"  # cosine, step
+  warmup_epochs: 3
+  device: 'cpu'  # cuda or cpu
+  save_period: 10  # 每N个epoch保存一次
+
+# 评估配置
+evaluation:
+  metrics: ["mAP", "precision", "recall", "f1_score"]
+  save_results: true
+  results_dir: "./results"
+  visualize: true  # 是否保存可视化结果
+
+# API配置
+api:
+  host: "0.0.0.0"
+  port: 5000
+  debug: false
+  max_upload_size: 16777216  # 16MB
+  allowed_extensions: ["jpg", "jpeg", "png", "bmp"]
+
