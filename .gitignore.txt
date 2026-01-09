@@ -1,0 +1,7 @@
+# .gitignore 内容
+.venv/
+.idea/
+__pycache__/
+*.pyc
+runs/
+.DS_Store
